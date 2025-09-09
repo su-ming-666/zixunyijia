@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>資訊科午餐點餐系統 - 测试版</title>
+  <!-- 引入 Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    /* 样式保持不变 */
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px; 
+      background: #f8f9fa; 
+      position: relative;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+    h1 { 
+      text-align: center; 
+      color: #2c3e50;
+    }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 20px; 
+      box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+    }
+    th, td { 
+      border: 1px solid #ccc; 
+      padding: 10px; 
+      text-align: center; 
+    }
+    th { 
+      background: #eee; 
+    }
+    input[type='number'], input[type='text'], input[type='password'] { 
+      width: 100px; 
+      padding: 5px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+    #orderSummary, #history, #adminView { 
+      margin-top: 20px; 
+      padding: 15px; 
+      background: #fff; 
+      border: 1px solid #ccc; 
+      border-radius: 5px;
+    }
+    button { 
+      margin: 5px; 
+      padding: 10px 20px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    .tab { 
+      overflow: hidden; 
+      border: 1px solid #ccc; 
+      background-color: #f1f1f1; 
+      border-radius: 5px 5px 0 0;
+    }
+    .tab button { 
+      background-color: inherit; 
+      float: left; 
+      border: none; 
+      outline: none; 
+      cursor: pointer; 
+      padding: 14px 16px; 
+      transition: 0.3s; 
+      font-weight: bold;
+    }
+    .tab button:hover { 
+      background-color: #ddd; 
+    }
+    .tab button.active { 
+      background-color: #ccc; 
+    }
+    .tabcontent { 
+      display: none; 
+      padding: 6px 12px; 
+      border: 1px solid #ccc; 
+      border-top: none; 
+      border-radius: 0 0 5px 5px;
+      background: white;
+    }
+    .admin-section { 
+      background-color: #fff3cd; 
+      padding: 10px; 
+      margin: 10px 0; 
+      border-radius: 5px; 
+      border: 1px solid #ffeaa7;
+    }
+    .cloud-status {
+      margin: 10px 0;
+      padding: 10px;
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      border-radius: 4px;
+      color: #155724;
+    }
+    .cloud-error {
+      background: #f8d7da;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+    .loading {
+      padding: 10px;
+      text-align: center;
+      color: #666;
+    }
+    .contact-info {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background-color: #f8f9fa;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #6c757d;
+      border: 1px solid #dee2e6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .refresh-info {
+      margin-top: 10px;
+      padding: 8px;
+      background: #e7f3ff;
+      border: 1px solid #b8daff;
+      border-radius: 4px;
+      color: #004085;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>資訊科若水點餐系統  </h1>
+
+  <div class="tab">
+    <button class="tablinks active" onclick="openTab(event, 'StudentTab')">學生端</button>
+    <button class="tablinks" onclick="openTab(event, 'AdminTab')">管理員端</button>
+  </div>
+
+  <!-- 學生端內容 -->
+  <div id="StudentTab" class="tabcontent" style="display:block;">
+    <div id="studentCloudStatus" class="cloud-status">雲端狀態: 正在連接...</div>
+    
+    <form id="orderForm">
+      <label>學號: <input type="text" id="studentID" required></label>
+      <table>
+        <tr><th>品項</th><th>價格 (NT$)</th><th>數量</th></tr>
+        <tr><td>水餃</td><td>65</td><td><input type="number" min="0" value="0" name="水餃"></td></tr>
+        <tr><td>雞排沙茶意麵</td><td>65</td><td><input type="number" min="0" value="0" name="雞排沙茶意麵"></td></tr>
+        <tr><td>餛飩麵</td><td>65</td><td><input type="number" min="0" value="0" name="餛飩麵"></td></tr>
+        <tr><td>咖哩雞排飯</td><td>65</td><td><input type="number" min="0" value="0" name="咖哩雞排飯"></td></tr>
+        <tr><td>咖哩豬排飯</td><td>65</td><td><input type="number" min="0" value="0" name="咖哩豬排飯"></td></tr>
+        <tr><td>咖哩魚/蝦排飯</td><td>65</td><td><input type="number" min="0" value="0" name="咖哩魚蝦排飯"></td></tr>
+        <tr><td>咖哩焗烤飯</td><td>70</td><td><input type="number" min="0" value="0" name="咖哩焗烤飯"></td></tr>
+        <tr><td>咖哩焗烤麵</td><td>70</td><td><input type="number" min="0" value="0" name="咖哩焗烤麵"></td></tr>
+        <tr><td>隨機餐</td><td>65</td><td><input type="number" min="0" value="0" name="隨機餐"></td></tr>
+        <tr><td>菲力雞排飯</td><td>65</td><td><input type="number" min="0" value="0" name="菲力雞排飯"></td></tr>
+        <tr><td>士林香腸飯</td><td>65</td><td><input type="number" min="0" value="0" name="士林香腸飯"></td></tr>
+        <tr><td>卡拉雞腿飯</td><td>65</td><td><input type="number" min="0" value="0" name="卡拉雞腿飯"></td></tr>
+        <tr><td>香煎雞腿飯</td><td>65</td><td><input type="number" min="0" value="0" name="香煎雞腿飯"></td></tr>
+        <tr><td>韓式手卷</td><td>50</td><td><input type="number" min="0" value="0" name="韓式手卷"></td></tr>
+        <tr><td>水果</td><td>25</td><td><input type="number" min="0" value="0" name="水果"></td></tr>
+      </table>
+      <button type="button" onclick="calculateOrder()">送出訂單</button>
+      <button type="button" onclick="showPersonalHistory()">查詢個人歷史訂單</button>
+    </form>
+
+    <div id="orderSummary"></div>
+    <div id="history"></div>
+  </div>
+
+  <!-- 管理員端內容 -->
+  <div id="AdminTab" class="tabcontent">
+    <div id="loginDiv">
+      <h2>管理員登入</h2>
+      <label>帳號: <input type="text" id="adminUser"></label>
+      <label>密碼: <input type="password" id="adminPass"></label>
+      <button onclick="login()">登入</button>
+    </div>
+
+    <div id="adminContent" style="display:none;">
+      <div id="adminCloudStatus" class="cloud-status">雲端狀態: 已連接</div>
+      
+      <div class="admin-section">
+        <h2>今日訂單統計</h2>
+        <div class="refresh-info">
+          系統將在每日凌晨12點自動刷新歸零
+        </div>
+        <table>
+          <tr><th>品項</th><th>價格 (NT$)</th><th>數量</th><th>小計</th></tr>
+          <tr><td>水餃</td><td>65</td><td id="qty_水餃">0</td><td id="sub_水餃">0</td></tr>
+          <tr><td>雞排沙茶意麵</td><td>65</td><td id="qty_雞排沙茶意麵">0</td><td id="sub_雞排沙茶意麵">0</td></tr>
+          <tr><td>餛飩麵</td><td>65</td><td id="qty_餛飩麵">0</td><td id="sub_餛飩麵">0</td></tr>
+          <tr><td>咖哩雞排飯</td><td>65</td><td id="qty_咖哩雞排飯">0</td><td id="sub_咖哩雞排飯">0</td></tr>
+          <tr><td>咖哩豬排飯</td><td>65</td><td id="qty_咖哩豬排飯">0</td><td id="sub_咖哩豬排飯">0</td></tr>
+          <tr><td>咖哩魚/蝦排飯</td><td>65</td><td id="qty_咖哩魚蝦排飯">0</td><td id="sub_咖哩魚蝦排飯">0</td></tr>
+          <tr><td>咖哩焗烤飯</td><td>70</td><td id="qty_咖哩焗烤飯">0</td><td id="sub_咖哩焗烤飯">0</td></tr>
+          <tr><td>咖哩焗烤麵</td><td>70</td><td id="qty_咖哩焗烤麵">0</td><td id="sub_咖哩焗烤麵">0</td></tr>
+          <tr><td>隨機餐</td><td>65</td><td id="qty_隨機餐">0</td><td id="sub_隨機餐">0</td></tr>
+          <tr><td>菲力雞排飯</td><td>65</td><td id="qty_菲力雞排飯">0</td><td id="sub_菲力雞排飯">0</td></tr>
+          <tr><td>士林香腸飯</td><td>65</td><td id="qty_士林香腸飯">0</td><td id="sub_士林香腸飯">0</td></tr>
+          <tr><td>卡拉雞腿飯</td><td>65</td><td id="qty_卡拉雞腿飯">0</td><td id="sub_卡拉雞腿飯">0</td></tr>
+          <tr><td>香煎雞腿飯</td><td>65</td><td id="qty_香煎雞腿飯">0</td><td id="sub_香煎雞腿飯">0</td></tr>
+          <tr><td>韓式手卷</td><td>50</td><td id="qty_韓式手卷">0</td><td id="sub_韓式手卷">0</td></tr>
+          <tr><td>水果</td><td>25</td><td id="qty_水果">0</td><td id="sub_水果">0</td></tr>
+          <!-- 添加总价格行 -->
+          <tr style="font-weight: bold; background-color: #f8f9fa;">
+            <td colspan="2">總計</td>
+            <td id="total_qty">0</td>
+            <td id="total_amount">0</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="admin-section">
+        <h2>訂單管理</h2>
+        <button type="button" onclick="showTodayOrders()">查看今日所有訂單</button>
+        <button type="button" onclick="showCloudAllOrders()" style="background: #17a2b8;">查看雲端全部訂單</button>
+        <button type="button" onclick="updateAdminQuantities()" style="background: #28a745;">手動刷新統計</button>
+      </div>
+
+      <div id="adminView"></div>
+    </div>
+  </div>
+
+  <!-- 右下角联系信息 -->
+  <div class="contact-info">
+    有意见和问题联络: <a href="mailto:s313027@csic.khc.edu.tw">s313027@csic.khc.edu.tw</a>
+  </div>
+
+  <script>
+    // Firebase 配置 - 使用您提供的配置
+    const firebaseConfig = {
+  	apiKey: "AIzaSyCl1XG8Mpdx46EssGEah3jSQ91G4M0L0L0",
+ 	 authDomain: "dianxanxitong.firebaseapp.com",
+  	projectId: "dianxanxitong",
+  	storageBucket: "dianxanxitong.firebasestorage.app",
+  	messagingSenderId: "592935221292",
+ 	appId: "1:592935221292:web:e75b5f3ee025070b0fb989",
+  	measurementId: "G-V1XVP8KRG7"
+    };
+
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 全局变量
+    const prices = {
+      "水餃":65, "雞排沙茶意麵":65, "餛飩麵":65, "咖哩雞排飯":65, 
+      "咖哩豬排飯":65, "咖哩魚蝦排飯":65, "咖哩焗烤飯":70, "咖哩焗烤麵":70, 
+      "隨機餐":65, "菲力雞排飯":65, "士林香腸飯":65, "卡拉雞腿飯":65, 
+      "香煎雞腿飯":65, "韓式手卷":50, "水果":25
+    };
+
+    // 存储最后刷新日期的变量
+    let lastRefreshDate = null;
+    let midnightTimer = null;
+
+    // 检查 Firebase 连接状态
+    function checkFirebaseConnection() {
+      // 简单的连接测试
+      db.collection("orders").limit(1).get()
+        .then(() => {
+          updateCloudStatus(true, "studentCloudStatus");
+          updateCloudStatus(true, "adminCloudStatus");
+        })
+        .catch((error) => {
+          console.error("Firebase 連接失敗:", error);
+          updateCloudStatus(false, "studentCloudStatus");
+          updateCloudStatus(false, "adminCloudStatus");
+        });
+    }
+
+    // 标签页切换功能
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+    }
+
+    // 获取今天的日期键
+    function getTodayKey() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    // 检查是否需要刷新（每日凌晨12点）
+    function checkAndResetAtMidnight() {
+      const today = getTodayKey();
+      
+      // 如果最后刷新日期不是今天，说明是新的一天
+      if (lastRefreshDate !== today) {
+        lastRefreshDate = today;
+        
+        // 如果管理员已登录，则刷新统计数据
+        if (document.getElementById('adminContent').style.display !== 'none') {
+          updateAdminQuantities();
+        }
+      }
+    }
+
+    // 设置午夜定时器
+    function setupMidnightReset() {
+      // 清除现有定时器
+      if (midnightTimer) {
+        clearInterval(midnightTimer);
+      }
+      
+      // 设置定时器，每分钟检查一次是否到了新的一天
+      midnightTimer = setInterval(checkAndResetAtMidnight, 60000);
+      
+      // 立即检查一次
+      checkAndResetAtMidnight();
+    }
+
+    // 学生端功能
+    async function calculateOrder() {
+      let form = document.getElementById("orderForm");
+      let studentID = document.getElementById("studentID").value.trim();
+      if (!studentID) {
+        alert("請輸入學號");
+        return;
+      }
+      
+      let summary = `<h2>訂單明細</h2><p>學號: ${studentID}</p><ul>`;
+      let total = 0;
+      let orderItems = [];
+      let now = new Date();
+      let dateKey = getTodayKey();
+      let timeStr = now.toLocaleTimeString('zh-TW');
+      
+      // 计算订单
+      for (let item in prices) {
+        let qty = parseInt(form[item].value);
+        if (qty > 0) {
+          let subtotal = qty * prices[item];
+          summary += `<li>${item} x ${qty} = NT$${subtotal}</li>`;
+          total += subtotal;
+          orderItems.push({item: item, qty: qty, subtotal: subtotal});
+        }
+      }
+      
+      if (orderItems.length === 0) {
+        alert("請至少選擇一項商品");
+        return;
+      }
+      
+      summary += `</ul><h3>總金額：NT$${total}</h3>`;
+      document.getElementById("orderSummary").innerHTML = summary;
+      
+      // 保存订单到 Firebase
+      await saveOrderToFirebase(studentID, orderItems, total, dateKey, timeStr);
+      
+      // 清空表单
+      for (let item in prices) {
+        form[item].value = "0";
+      }
+    }
+
+    async function saveOrderToFirebase(studentID, orders, total, date, time) {
+      try {
+        // 添加订单到 Firestore
+        await db.collection("orders").add({
+          studentID: studentID,
+          orders: orders,
+          total: total,
+          date: date,
+          time: time,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert("訂單已成功送出到雲端！");
+      } catch (error) {
+        console.error("保存訂單失敗:", error);
+        alert("訂單送出失敗，請檢查網絡連接後重試");
+      }
+    }
+
+    function showPersonalHistory() {
+      let studentID = document.getElementById("studentID").value.trim();
+      if (!studentID) {
+        alert("請先輸入學號");
+        return;
+      }
+      
+      showCloudPersonalHistory(studentID);
+    }
+
+    function showCloudPersonalHistory(studentID) {
+      let html = `<h2>個人歷史訂單紀錄 - 學號: ${studentID}</h2>`;
+      document.getElementById("history").innerHTML = html + '<div class="loading">正在加載數據...</div>';
+      
+      // 从 Firebase 查询数据 - 简化查询避免索引问题
+      db.collection("orders")
+        .where("studentID", "==", studentID)
+        .get()
+        .then((querySnapshot) => {
+          if (querySnapshot.empty) {
+            document.getElementById("history").innerHTML = html + '<p>尚無訂單紀錄</p>';
+            return;
+          }
+          
+          // 在客户端进行排序
+          const orders = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            orders.push({
+              ...data,
+              id: doc.id,
+              timestamp: data.timestamp ? data.timestamp.toDate() : new Date(data.date)
+            });
+          });
+          
+          // 按时间降序排序
+          orders.sort((a, b) => b.timestamp - a.timestamp);
+          
+          html = `<h2>個人歷史訂單紀錄 - 學號: ${studentID} (共 ${orders.length} 筆)</h2>`;
+          
+          orders.forEach((order) => {
+            html += `<p><b>${order.date} ${order.time}</b> - 總金額: NT$${order.total}</p><ul>`;
+            order.orders.forEach(o => {
+              html += `<li>${o.item} x ${o.qty} = NT$${o.subtotal}</li>`;
+            });
+            html += `</ul>`;
+          });
+          
+          document.getElementById("history").innerHTML = html;
+        })
+        .catch((error) => {
+          console.error("獲取歷史訂單失敗:", error);
+          document.getElementById("history").innerHTML = html + `<p class="cloud-error">加載失敗: ${error.message}</p>`;
+        });
+    }
+
+    // 管理员功能
+    function login() {
+      const user = document.getElementById('adminUser').value;
+      const pass = document.getElementById('adminPass').value;
+      
+      // 简单验证
+      if (user === 'admin' && pass === '1234') {
+        document.getElementById('loginDiv').style.display = 'none';
+        document.getElementById('adminContent').style.display = 'block';
+        updateAdminQuantities();
+        setupMidnightReset(); // 设置午夜刷新定时器
+      } else {
+        alert('帳號或密碼錯誤');
+      }
+    }
+
+    async function updateAdminQuantities() {
+      const todayKey = getTodayKey();
+      let itemCount = {};
+      let totalQty = 0;
+      let totalAmount = 0;
+      
+      for (let item in prices) {
+        itemCount[item] = 0;
+      }
+      
+      try {
+        const querySnapshot = await db.collection("orders")
+          .where("date", "==", todayKey)
+          .get();
+          
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          data.orders.forEach(o => {
+            if (itemCount[o.item] !== undefined) {
+              itemCount[o.item] += parseInt(o.qty);
+            }
+          });
+        });
+        
+        // 更新表格中的数量和计算小计
+        for (let item in prices) {
+          const quantity = itemCount[item];
+          const subtotal = quantity * prices[item];
+          
+          document.getElementById(`qty_${item}`).textContent = quantity;
+          document.getElementById(`sub_${item}`).textContent = subtotal;
+          
+          totalQty += quantity;
+          totalAmount += subtotal;
+        }
+        
+        // 更新总计行
+        document.getElementById("total_qty").textContent = totalQty;
+        document.getElementById("total_amount").textContent = totalAmount;
+      } catch (error) {
+        console.error("更新數量失敗:", error);
+      }
+    }
+
+    function showTodayOrders() {
+      const todayKey = getTodayKey();
+      let html = `<h2>今日所有訂單 - ${todayKey}</h2>`;
+      document.getElementById("adminView").innerHTML = html + '<div class="loading">正在加載數據...</div>';
+      
+      db.collection("orders")
+        .where("date", "==", todayKey)
+        .get()
+        .then((querySnapshot) => {
+          if (querySnapshot.empty) {
+            document.getElementById("adminView").innerHTML = html + '<p>今日尚無訂單</p>';
+            return;
+          }
+          
+          html = `<h2>今日所有訂單 - ${todayKey} (共 ${querySnapshot.size} 筆)</h2>`;
+          
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            html += `<p><b>學號: ${data.studentID}</b> - 時間: ${data.time} - 總金額: NT$${data.total}</p><ul>`;
+            data.orders.forEach(o => {
+              html += `<li>${o.item} x ${o.qty} = NT$${o.subtotal}</li>`;
+            });
+            html += `</ul>`;
+          });
+          
+          document.getElementById("adminView").innerHTML = html;
+        })
+        .catch((error) => {
+          console.error("獲取今日訂單失敗:", error);
+          document.getElementById("adminView").innerHTML = html + `<p class="cloud-error">加載失敗: ${error.message}</p>`;
+        });
+    }
+
+    function showCloudAllOrders() {
+      let html = `<h2>雲端全部訂單數據</h2>`;
+      document.getElementById("adminView").innerHTML = html + '<div class="loading">正在加載數據...</div>';
+      
+      db.collection("orders")
+        .get()
+        .then((querySnapshot) => {
+          if (querySnapshot.empty) {
+            document.getElementById("adminView").innerHTML = html + '<p>雲端尚無任何訂單紀錄</p>';
+            return;
+          }
+          
+          // 在客户端按日期分组和排序
+          const ordersByDate = {};
+          let totalRevenue = 0;
+          
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (!ordersByDate[data.date]) {
+              ordersByDate[data.date] = [];
+            }
+            ordersByDate[data.date].push(data);
+            totalRevenue += data.total;
+          });
+          
+          // 按日期排序
+          const sortedDates = Object.keys(ordersByDate).sort().reverse();
+          
+          html = `<h2>雲端全部訂單數據 (共 ${querySnapshot.size} 筆)</h2>`;
+          
+          sortedDates.forEach(date => {
+            html += `<h3>日期: ${date}</h3>`;
+            ordersByDate[date].forEach(order => {
+              html += `<p><b>學號: ${order.studentID}</b> - 時間: ${order.time} - 總金額: NT$${order.total}</p><ul>`;
+              order.orders.forEach(o => {
+                html += `<li>${o.item} x ${o.qty} = NT$${o.subtotal}</li>`;
+              });
+              html += `</ul>`;
+            });
+          });
+          
+          html += `<div style="margin-top: 20px; padding: 10px; background: #e9ecef; border-radius: 5px;">
+                    <p><strong>總訂單數: ${querySnapshot.size}</strong></p>
+                    <p><strong>總營業額: NT$${totalRevenue}</strong></p>
+                   </div>`;
+          
+          document.getElementById("adminView").innerHTML = html;
+        })
+        .catch((error) => {
+          console.error("獲取雲端訂單失敗:", error);
+          document.getElementById("adminView").innerHTML = html + `<p class="cloud-error">加載失敗: ${error.message}</p>`;
+        });
+    }
+
+    // 更新云端状态显示
+    function updateCloudStatus(isConnected, elementId) {
+      const statusElement = document.getElementById(elementId);
+      if (isConnected) {
+        statusElement.className = "cloud-status";
+        statusElement.textContent = "雲端狀態: 已連接";
+      } else {
+        statusElement.className = "cloud-status cloud-error";
+        statusElement.textContent = "雲端狀態: 連接失敗";
+      }
+    }
+
+    // 初始化
+    window.onload = function() {
+      checkFirebaseConnection();
+      // 初始化最后刷新日期
+      lastRefreshDate = getTodayKey();
+    };
+  </script>
+</body>
+</html>
